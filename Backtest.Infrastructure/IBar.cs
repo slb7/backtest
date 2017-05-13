@@ -8,6 +8,8 @@ namespace Backtest.Infrastructure
 {
     public interface IBar : IComparable
     {
+        DateTime Time { get; }
+        string Symbol { get; }
         double Open { get; }
         double High { get; }
         double Low { get; }

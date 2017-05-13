@@ -43,7 +43,9 @@
     <Compile Include="Bar.cs" />
     <Compile Include="BarDay.cs" />
     <Compile Include="BarStringComparer.cs" />
+    <Compile Include="DayCandle.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Utility.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Backtest.Infrastructure\Backtest.Infrastructure.csproj">

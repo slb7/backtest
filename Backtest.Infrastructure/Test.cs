@@ -8,14 +8,20 @@ namespace Backtest.Infrastructure
 {
     public abstract class Test
     {
-        public TestContainer Container;
+
         bool underflow;
         int i;
         IBar[] bars;
         public IBarDay bd;
-        public abstract bool t(int i);
-        public abstract double exec();
+        public bool testNextDay = false;
+        public static List<string> messages = new List<string>();
+        public abstract bool CheckLongEntryCriteria(int symbolNumber, int dayNumber, int minuteNumber);
+        public abstract bool CheckShortEntryCriteria(int symbolNumber, int dayNumber, int minuteNumber);
+        public abstract double CalculateLongEntryLimitPrice();
+        public abstract double CalculateShortEntryLimitPrice();
         public abstract bool screen();
+        public abstract double CalculateLongExitLimitPrice();
+        public abstract double CalculateShortExitLimitPrice();
 
         public int tif = 0;
         public double profitExit = .01;
@@ -23,28 +29,186 @@ namespace Backtest.Infrastructure
         public bool entering = false;
         public int CloseAll;
         public int StopTimeInterval;
+        public IDayCandle today;
+        public IDayCandle prev;
+        public static List<TestResult> testResults = new List<TestResult>();
+        public static TestResult testResult;
         //int stopTime;
-        public static int Time(int i)
+        public int Time()
         {
             int rv = (int)new TimeSpan(0, i, 0).TotalSeconds;
             return rv;
         }
-        public static int Time(string t)
+        public int Time(string t)
         {
             int rv = (int)((TimeSpan.Parse(t) - TimeSpan.Parse("09:30")).TotalSeconds);
             return rv;
         }
-        public bool inPosition = false;
-        bool orderInForce = false;
-        int orderInForceExpiry = 0;
-        double enterLimitPrice = 0;
-        double exitLimitPrice = 0;
-        double enterExecPrice = 0;
-        double exitExecPrice = 0;
-        public int inPositionDays = 0;
-        int stopTime = 0;
-        public void runMinute(int i, TestResult tr, IBarDay barday)
+        public static Dictionary<string, Test> testDictionary = new Dictionary<string, Test>();
+        public static System.Type type;
+        public int symbolNumber;
+        public string symbol;
+        public float[] arr;
+        public short[] arr5;
+        public short[] arr15;
+        public short[] arr390;
+        public int symbolCount;
+        int shortsPerBar = 7;
+        int minutesPerDay = 390;
+        int barsPerDay1;
+        int barsPerDay5;
+        int barsPerDay15;
+        int shortsPerDay;
+        int shortsPerMinute;
+        public void calcBPD()
         {
+            barsPerDay1 = (minutesPerDay * symbolCount * shortsPerBar);
+            barsPerDay5 = ((minutesPerDay / 5) * symbolCount * shortsPerBar);
+            barsPerDay15 = ((minutesPerDay / 15) * symbolCount * shortsPerBar);
+            shortsPerMinute = symbolCount * shortsPerBar;
+            shortsPerDay = shortsPerMinute * minutesPerDay;
+        }
+        //int symbolNumber;
+        public int dayNumber;
+        public int minuteNumber;
+        private double itod(short i)
+        {
+            double rv = (double)i;
+            return rv / 100;
+        }
+        public double MinuteOpen(int mins, int period)
+        {
+            int offset = 0;
+            int adjustedMinuteNumber = minuteNumber - period;
+            if (mins == 1)
+            {
+                double rv = 0;
+                bool uf = false;
+                do
+                {
+                    offset = (dayNumber * shortsPerDay) + (adjustedMinuteNumber * shortsPerMinute) + (symbolNumber * shortsPerBar);
+                    if (offset < 0)
+                    {
+                        if (adjustedMinuteNumber >= 0)
+                        {
+
+                        }
+                        uf = true;
+                    }
+                    rv = arr[offset + 2];
+                    adjustedMinuteNumber -= 1; // if open price = 0, go to previous minte next time
+                } while (!uf && rv == 0);
+                return rv;
+            }
+            throw (new Exception("not supposed to be here"));
+            return 0;
+        }
+        public double CurrentDayLow()
+        {
+            int offset = 0;
+            int adjustedMinuteNumber = minuteNumber;
+            offset = (dayNumber * shortsPerDay) + (adjustedMinuteNumber * shortsPerMinute) + (symbolNumber * shortsPerBar);
+            if (offset < 0)
+            {
+                if (adjustedMinuteNumber >= 0)
+                {
+
+                }
+                return 0;
+            }
+            double rv = arr[offset + 5];
+            return rv;
+        }
+        public double CurrentDayHigh()
+        {
+            int offset = 0;
+            int adjustedMinuteNumber = minuteNumber;
+            offset = (dayNumber * shortsPerDay) + (adjustedMinuteNumber * shortsPerMinute) + (symbolNumber * shortsPerBar);
+            if (offset < 0)
+            {
+                if (adjustedMinuteNumber >= 0)
+                {
+
+                }
+                return 0;
+            }
+            double rv = arr[offset + 4];
+            return rv;
+        }
+        public string[] dates;
+        public string[] symbols;
+        public static TestResult TestDay(ILookup<DateTime, IBarDay> bdl, DateTime date,string[] dates, string[] symbols, float[][] arrs, Dictionary<string,IDayCandle> dcPrev, Dictionary<string, IDayCandle> dcToday)
+        {
+            TestResult tr = new TestResult();
+            Test.testResult = tr;
+            tr.Date = date;
+            string dateString = date.ToString("MM/dd/yyyy");
+            int dayNumber = Array.BinarySearch(dates, dateString);
+            for (int i = 0; i < 390; i++)
+            {
+                foreach (IBarDay bd in bdl[date])
+                {
+                    string symbol = bd.Symbol;
+                    Test t;
+                    if (!testDictionary.ContainsKey(symbol))
+                    {
+                        t = (Test)Activator.CreateInstance(type);
+                        t.symbolNumber = Array.BinarySearch(symbols, symbol);
+                        t.symbolCount = symbols.Count();
+                        t.minutesPerDay = 390;
+                        t.shortsPerBar = 7;
+                        t.calcBPD();
+                        t.dates = dates;
+                        t.symbols = symbols;
+                        t.arr = arrs[0];
+                        testDictionary[symbol] = t;
+                    }
+                    t = testDictionary[symbol];
+                    try
+                    {
+                        IDayCandle prev = dcPrev[symbol];
+                        IDayCandle today = dcToday[symbol];
+                        t.runMinute(i, tr, bd, dayNumber, prev, today);
+                    }
+                    catch(Exception e)
+                    {
+                        //Console.WriteLine($"crap {symbol} {t.dates[0]}" );
+                        
+                    }
+                }
+            }
+            foreach (Test t in testDictionary.Values)
+            {
+                if (t.inPosition && t.maxOvernights > 0)
+                {
+                    t.inPositionDays++;
+                }
+            }
+            return tr;
+        }
+        bool inPosition = false;
+        bool orderInForce = false;
+        char activeOrderSide = ' ';
+        int orderInForceExpiry = 0;
+        public double enterLimitPrice = 0;
+        public double exitLimitPrice = 0;
+        public double enterExecPrice = 0;
+        double exitExecPrice = 0;
+        int inPositionDays = 0;
+        int stopTime = 0;
+        public static List<string> results = new List<string>();
+        public void runMinute(int i, TestResult tr, IBarDay barday, int dayNumber, IDayCandle prev, IDayCandle today)
+        {
+            //Console.WriteLine($"dayno={dayNumber} minteNumber={i}");
+            this.today = today;
+            this.prev = prev;
+            if (i == 3)
+            {
+                string ip = inPosition ? "t" : "f";
+                string oif = orderInForce ? "t" : "f";
+                //results.Add($"{today.Symbol} {today.Open}  {today.Date} {i} {ip} {oif}");
+            }
+            if (today.Symbol == "XOM") { }
             this.i = i;
             if (i == 0)
             {
@@ -58,12 +222,14 @@ namespace Backtest.Infrastructure
                 //stopTime = 0;
             }
             bd = barday;
+            //Console.WriteLine($"{i} {bd.Symbol}");
             underflow = false;
-            Container.messages.Clear();
+            Test.messages.Clear();
             if (!inPosition && !orderInForce)
             {
                 //double tt = MinuteOpen(1, 0);
-                CheckEntryCriteria(Container.results, barday, ref orderInForce, ref orderInForceExpiry, ref enterLimitPrice, i);
+                int minuteNumber = i;
+                CheckEntryCriteria(results, barday, ref orderInForce, ref orderInForceExpiry, ref enterLimitPrice,dayNumber,minuteNumber);
             }
             else if (!inPosition)
             {
@@ -72,29 +238,34 @@ namespace Backtest.Infrastructure
                     if (i < orderInForceExpiry)
                     {
                         //ProcessTradeEntry(results, barday, ref inPosition, ref orderInForce, enterLimitPrice, ref exitLimitPrice, ref enterExecPrice, ref stopTime);
-                        ProcessTradeEntry(Container.results, barday);// ref inPosition, ref orderInForce, enterLimitPrice, ref exitLimitPrice, ref enterExecPrice, ref stopTime);
+                        ProcessTradeEntry(results, barday);// ref inPosition, ref orderInForce, enterLimitPrice, ref exitLimitPrice, ref enterExecPrice, ref stopTime);
                     }
                     else //tif expired
                     {
                         orderInForce = false;
-                        Container.results.Add($"tif expired {i}");
+                        results.Add($"{barday.Symbol} tif expired {i}");
                     }
                 }
             }
             else if (inPosition)
             {
-                ProcessTradeExit(Container.results, barday);//, ref inPosition, exitLimitPrice, enterExecPrice, ref exitExecPrice, stopTime);
+                ProcessTradeExit(results, barday);//, ref inPosition, exitLimitPrice, enterExecPrice, ref exitExecPrice, stopTime);
             }
 
         }
-
+        static Dictionary<DateTime, Dictionary<string, IBar>> dict;
+        public static bool uf;
+        static string screenSymbol;
+        static DateTime screenDate;
+        static DateTime[] dbk = null;
+        public static List<string> dbs = new List<string>();
         public double GetAverageDailyRange(int d)
         {
             Double tot = 0;
             for (int i = 1; i < d + 1; i++)
             {
                 IBar b = GetDayBar(i);
-                if (Container.uf) return 0;
+                if (Test.uf) return 0;
                 tot += (b.High - b.Low);
             }
             return tot / d;
@@ -105,46 +276,73 @@ namespace Backtest.Infrastructure
             for (int i = 1; i < d + 1; i++)
             {
                 IBar b = GetDayBar(i);
-                if (Container.uf) return 0;
+                if (Test.uf) return 0;
                 tot += b.Volume;
             }
             return tot / d;
         }
         public IBar GetDayBar(DateTime dt, int offset)
         {
-            Container.screenDate = dt;
+            screenDate = dt;
             return GetDayBar(offset);
         }
+        public static Type bartype;
         IBar GetZeroBar()
         {
-            IBar rv = (IBar)Activator.CreateInstance(Container.bartype,new object[] { 0, 0, 0, 0, 0 });
+            IBar rv = (IBar)Activator.CreateInstance(bartype,new object[] { 0, 0, 0, 0, 0 });
             return rv;
         }
         public IBar GetDayBar(int d)
         {
-            return Container.dict[Container.screenDate][Container.screenSymbol];
-            if (Container.dbk == null)
+            IBar rv = bd.GetMinuteBar(0, 390, 0);
+            return rv;
+            if (dbk == null)
             {
-                Container.dbk = Container.dict.Keys.ToArray();
-                Array.Sort(Container.dbk);
+                dbk = dict.Keys.ToArray();
+                Array.Sort(dbk);
             }
-            int ind = Array.BinarySearch(Container.dbk, Container.screenDate);
+            int ind = Array.BinarySearch(dbk, screenDate);
             if (ind >= d) ind -= d;
             else
             {
-                Container.uf = true;
+                uf = true;
                 return GetZeroBar();
             }
-            Dictionary<string, IBar> sb = Container.dict[Container.dbk[ind]];
+            Dictionary<string, IBar> sb = dict[dbk[ind]];
             //File.AppendAllText(@"c:\src\diag.txt", $"open={sb["SPY"].Open} close={sb["SPY"].Close}");
-            return sb[Container.screenSymbol];
+            return sb[screenSymbol];
         }
         public abstract string GetVerion();
-        public string[] run(IBarDay[] barDays, Dictionary<DateTime, Dictionary<string, IBar>> dayDict)
+        public static List<Tuple<string, DateTime>> ScreenAll(string[] symbols, string[] dates, Test inTest)
         {
-            Container.testDictionary.Clear();
-            List<Tuple<string, DateTime>> screened = Container.ScreenAll(dayDict, this);
-            Container.testResults = new List<TestResult>();
+
+            List<Tuple<string, DateTime>> screened = new List<Tuple<string, DateTime>>();
+            //dict = indict;
+            DateTime[] dateArray = (from d in dates select DateTime.Parse(d)).ToArray();
+            foreach (DateTime dt in dateArray)
+            {
+                foreach (string sym in symbols)
+                {
+                    screenSymbol = sym;
+                    screenDate = dt;
+                    uf = false;
+                    if (inTest.screen())
+                    {
+                        if (!uf)
+                        {
+                            screened.Add(new Tuple<string, DateTime>(sym, dt));
+                        }
+                    }
+                }
+            }
+            return screened;
+        }
+        //public string[] run(IBarDay[] barDays, Dictionary<DateTime, Dictionary<string, IBar>> dayDict)
+        public string[] run(IBarDay[] barDays, string[] symbols, string[] dates,float[][] arrs, Dictionary<string,Dictionary<string, IDayCandle>> dcPrev, Dictionary<string, Dictionary<string, IDayCandle>> dcToday)
+        {
+            testDictionary.Clear();
+            List<Tuple<string, DateTime>> screened = ScreenAll(symbols, dates, this);
+            //Test.testResults = new List<TestResult>();
             //List<string> results = new List<string>();
             //List<TestResult> testResults = new List<TestResult>();
             int goodDay = 0;
@@ -165,8 +363,10 @@ namespace Backtest.Infrastructure
             bdl = barDayList.ToLookup(k => k.Date);
             foreach (var dt in bdl)
             {
-                TestResult tr = Container.TestDay(bdl, dt.Key);
-                Container.testResults.Add(tr);
+                Dictionary<string, IDayCandle> today = dcToday[dt.Key.ToString("MM/dd/yyyy")];
+                Dictionary<string, IDayCandle> prev = dcPrev[dt.Key.ToString("MM/dd/yyyy")];
+                TestResult tr = TestDay(bdl, dt.Key,dates,symbols, arrs, prev, today);
+                testResults.Add(tr);
 
             }
             string[] s = { "hello", "world" };
@@ -176,7 +376,7 @@ namespace Backtest.Infrastructure
             //    Bar b = (from ba in barday.bars where ba != null select ba).First();
             //    double dayOpen = b.Open;
             //    testResult = new TestResult() { Date = barday.Date, DayOpen = dayOpen };
-            //    Container.messages.Clear();
+            //    Test.messages.Clear();
             //    bd = barday;
 
             //    this.bars = barday.bars;
@@ -202,31 +402,44 @@ namespace Backtest.Infrastructure
             //File.AppendAllText(@"c:\src\diag.txt", $"profitExit={profitExit} tif={tif} exitLimitPrice{exitLimitPrice}\r\n");
             if (b != null)
             {
-                if (b.Open > exitLimitPrice)
+                if (b.Open > exitLimitPrice && activeOrderSide == 'B')
                 {
                     DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i);
                     exitExecPrice = exitLimitPrice;
                     double pandl = exitExecPrice - enterExecPrice;
-                    Container.testResult.NumTrades++;
-                    Container.testResult.PandL += pandl;
+                    testResult.NumTrades++;
+                    testResult.PandL += pandl;
                     //testResults.Add(testResult);
-                    string str = $"{bd.Symbol} exit:{barTime.ToString("MM-dd-yy HH:mm:ss")} {i} {b.ToString()} exitExecPrice={exitExecPrice} p&l={(exitExecPrice - enterExecPrice).ToString("0.00")}";
+                    string str = $"{bd.Symbol} exitlong:{barTime.ToString("MM-dd-yy HH:mm:ss")} {i} exitExecPrice={exitExecPrice.ToString("0.00")} p&l={(exitExecPrice - enterExecPrice).ToString("0.00")}";
                     results.Add(str);
-                    results.AddRange(Container.messages);
+                    results.AddRange(Test.messages);
+                    inPosition = false;
+                } else if(b.Open != 0 && b.Open < exitLimitPrice && activeOrderSide == 'S') {
+                    DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i);
+                    exitExecPrice = exitLimitPrice;
+                    double pandl = enterExecPrice - exitExecPrice;
+                    testResult.NumTrades++;
+                    testResult.PandL += pandl;
+                    //testResults.Add(testResult);
+                    string str = $"{bd.Symbol} exitsell:{barTime.ToString("MM-dd-yy HH:mm:ss")} {i} enterExecPrice={enterExecPrice.ToString("0.00")} exitExecPrice={exitExecPrice.ToString("0.00")} p&l={pandl.ToString("0.00")}";
+                    results.Add(str);
+                    results.AddRange(Test.messages);
                     inPosition = false;
                 }
-                else if (i >= stopTime || (i >= CloseAll && inPositionDays >= maxOvernights))
+                else if ((i >= stopTime || (i >= CloseAll && inPositionDays >= maxOvernights)) && b.Open != 0)
                 {
+                    results.Add($"stop time{stopTime}");
                     //File.AppendAllText(@"c:\src\diag.txt", $"profitExit={profitExit} tif={tif} exitLimitPrice{exitLimitPrice} \r\n");
                     DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i);
                     exitExecPrice = b.Open;
-                    double pandl = exitExecPrice - enterExecPrice;
-                    Container.testResult.NumTrades++;
-                    Container.testResult.PandL += pandl;
+                    double pandl = enterExecPrice - exitExecPrice;
+                    if (activeOrderSide == 'B') pandl *= -1;
+                    testResult.NumTrades++;
+                    testResult.PandL += pandl;
                     //testResults.Add(testResult);
-                    string str = $"{bd.Symbol} Stop Exit:{barTime.ToString("MM-dd-yy HH:mm:ss")} {i} {b.ToString()} exitExecPrice={exitExecPrice} p&l={(exitExecPrice - enterExecPrice).ToString("0.00")}";
+                    string str = $"{bd.Symbol} Stop Exit:{barTime.ToString("MM-dd-yy HH:mm:ss")} {i} enterExecPrice={enterExecPrice} exitExecPrice={exitExecPrice} p&l={(pandl).ToString("0.00")}";
                     results.Add(str);
-                    results.AddRange(Container.messages);
+                    results.AddRange(Test.messages);
                     inPosition = false;
                 }
             }
@@ -235,28 +448,50 @@ namespace Backtest.Infrastructure
         //        private void ProcessTradeEntry(List<string> results, BarDay barday, ref bool inPosition, ref bool orderInForce, double enterLimitPrice, ref double exitLimitPrice, ref double enterExecPrice, ref int stopTime)
         private void ProcessTradeEntry(List<string> results, IBarDay barday) //, ref bool inPosition, ref bool orderInForce, double enterLimitPrice, ref double exitLimitPrice, ref double enterExecPrice, ref int stopTime)
         {
-            IBar b = bd.GetMinuteBar(i, 1, 1);
-            if (b.Open < enterLimitPrice)
+            IBar b = bd.GetMinuteBar(i, 1, 0);
+            if (b.Open == 0 && b.Volume == 0) return;
+            if (b.Open < enterLimitPrice && activeOrderSide == 'B')
             {
                 DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i);
 
                 inPosition = true;
                 inPositionDays = 0;
                 enterExecPrice = b.Open;
-                exitLimitPrice = enterExecPrice + profitExit;
+                double mc1 = MinuteClose(1, 1);
+                double elp = mc1 + (prev.ATR * .1);
+                exitLimitPrice = CalculateLongExitLimitPrice();
                 b = bd.GetMinuteBar(i, 1, 0);
-                string str = $"{bd.Symbol} enter:{barTime.ToString("MM-dd-yy HH:mm:ss")} {i} {b.ToString()} enterExecPrice={enterExecPrice} exitLimitPrice={exitLimitPrice}";
+                string str = $"{bd.Symbol} enterlong:{barTime.ToString("MM-dd-yy HH:mm:ss")} {i} enterExecPrice={enterExecPrice.ToString("0.00")} exitLimitPrice={exitLimitPrice.ToString("0.00")}";
                 results.Add(str);
-                results.AddRange(Container.messages);
+                results.AddRange(Test.messages);
                 orderInForce = false;
                 stopTime = i + StopTimeInterval;
                 //File.AppendAllText(@"c:\src\diag.txt", $"stopTime={stopTime} i={i}\r\n");
             }
+            if (b.Open > enterLimitPrice && activeOrderSide == 'S')
+            {
+                DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i);
+
+                inPosition = true;
+                inPositionDays = 0;
+                enterExecPrice = b.Open;
+                double mc1 = MinuteClose(1, 1);
+                double elp = mc1 + (prev.ATR * .1);
+                exitLimitPrice = CalculateShortExitLimitPrice();
+                b = bd.GetMinuteBar(i, 1, 0);
+                string str = $"{bd.Symbol} entershort:{barTime.ToString("MM-dd-yy HH:mm:ss")} {i} enterExecPrice={enterExecPrice.ToString("0.00")} exitLimitPrice={exitLimitPrice.ToString("0.00")}";
+                results.Add(str);
+                results.AddRange(Test.messages);
+                orderInForce = false;
+                stopTime = i + StopTimeInterval;
+                results.Add($"current time {i} stop time {stopTime}");
+                //File.AppendAllText(@"c:\src\diag.txt", $"stopTime={stopTime} i={i}\r\n");
+            }
         }
 
-        private void CheckEntryCriteria(List<string> results, IBarDay barday, ref bool orderInForce, ref int orderInForceExpiry, ref double enterLimitPrice,int i)
+        private void CheckEntryCriteria(List<string> results, IBarDay barday, ref bool orderInForce, ref int orderInForceExpiry, ref double enterLimitPrice, int dayNumber, int minuteNumber)
         {
-            if (t(i))
+            if (CheckLongEntryCriteria(symbolNumber,dayNumber,minuteNumber))
             {
                 IBar b = bd.GetMinuteBar(i, 1, 0);
                 if (b == null) underflow = true;
@@ -264,14 +499,38 @@ namespace Backtest.Infrastructure
                 {
                     DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i);
                     entering = true;
-                    enterLimitPrice = exec();
+                    enterLimitPrice = CalculateLongEntryLimitPrice();
                     //double d = MinuteClose(5, 0);
                     //double dd = bars[i].Close;
                     entering = false;
-                    string str = $"{bd.Symbol} met: {barTime.ToString("MM-dd-yy HH:mm:ss")} {i} {b.ToString()} enterLimitPrice={enterLimitPrice}";
+                    int pid = System.Diagnostics.Process.GetCurrentProcess().Id;
+                    string str = $"{bd.Symbol} metlong: {barTime.ToString("MM-dd-yy HH:mm:ss")} {i} enterLimitPrice={enterLimitPrice.ToString("0.00")} pid={pid}";
                     results.Add(str);
-                    results.AddRange(Container.messages);
+                    results.AddRange(Test.messages);
                     orderInForce = true;
+                    activeOrderSide = 'B';
+                    orderInForceExpiry = i + tif;
+                    //File.AppendAllText(@"c:\src\diag.txt", $"profitExit={profitExit} tif={tif}\r\n");
+                }
+            }
+            if (CheckShortEntryCriteria(symbolNumber, dayNumber, minuteNumber))
+            {
+                IBar b = bd.GetMinuteBar(i, 1, 0);
+                if (b == null) underflow = true;
+                if (!underflow)
+                {
+                    DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i);
+                    entering = true;
+                    enterLimitPrice = CalculateShortEntryLimitPrice();
+                    //double d = MinuteClose(5, 0);
+                    //double dd = bars[i].Close;
+                    entering = false;
+                    int pid = System.Diagnostics.Process.GetCurrentProcess().Id;
+                    string str = $"{bd.Symbol} metshort: {barTime.ToString("MM-dd-yy HH:mm:ss")} {i} enterLimitPrice={enterLimitPrice.ToString("0.00")} pid={pid}";
+                    results.Add(str);
+                    results.AddRange(Test.messages);
+                    orderInForce = true;
+                    activeOrderSide = 'S';
                     orderInForceExpiry = i + tif;
                     //File.AppendAllText(@"c:\src\diag.txt", $"profitExit={profitExit} tif={tif}\r\n");
                 }
@@ -317,17 +576,17 @@ namespace Backtest.Infrastructure
         //        string rep = $"underflow={underflow} mins={mins} i={i} interval={interval} start={start} end={start + len} len={len} p={p} open={open} high={high} low={low} close={close} volume={volume}";
         //    }
         //}
-        public double MinuteOpen(int mins, int p)
-        {
-            double rv = 0;
-            IBar mb = bd.GetMinuteBar(i, mins, p);
-            if (mb == null)
-            {
-                underflow = true;
-            }
-            else rv = mb.Open;
-            return rv;
-        }
+        //public double MinuteOpen(int mins, int p)
+        //{
+        //    double rv = 0;
+        //    IBar mb = bd.GetMinuteBar(i, mins, p);
+        //    if (mb == null)
+        //    {
+        //        underflow = true;
+        //    }
+        //    else rv = mb.Open;
+        //    return rv;
+        //}
         public double MinuteHigh(int mins, int p)
         {
             double rv = 0;
@@ -390,9 +649,27 @@ namespace Backtest.Infrastructure
             //}
             //return rv;
         }
+        public int MinuteVolume(int mins, int p)
+        {
+            int rv = 0;
+            IBar mb = bd.GetMinuteBar(i, mins, p);
+            if (mb == null)
+            {
+                underflow = true;
+            }
+            else rv = mb.Volume;
+            return rv;
+        }
         public double MinuteLow(int mins, int p)
         {
-            return 0;
+            double rv = 0;
+            IBar mb = bd.GetMinuteBar(i, mins, p);
+            if (mb == null)
+            {
+                underflow = true;
+            }
+            else rv = mb.Low;
+            return rv;
         }
         public double DayHigh(int p)
         {

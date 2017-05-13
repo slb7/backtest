@@ -42,9 +42,9 @@
   <ItemGroup>
     <Compile Include="IBar.cs" />
     <Compile Include="IBarDay.cs" />
+    <Compile Include="IDayCandle.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Test.cs" />
-    <Compile Include="TestContainer.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

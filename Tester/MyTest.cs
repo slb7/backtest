@@ -1,60 +1,111 @@
-﻿using Backtest.Infrastructure;
+﻿//hs2
+using Backtest.Infrastructure;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Tester
+namespace MyTest
 {
-    class MyTest : Backtest.Infrastructure.Test
+    public class MyTest : Backtest.Infrastructure.Test
     {
-        public override double exec()
+        public override double CalculateShortEntryLimitPrice()
+        { return 0; }
+        public override double CalculateLongEntryLimitPrice()
         {
-            return 1;
+            double mo = MinuteOpen(1, 0);
+            //string str = $"{symbols[symbolNumber]} {mo.ToString("0.00")}";
+            //results.Add("hel;;p");
+            return MinuteOpen(1, 0) + 0.5;
         }
 
         public override string GetVerion()
         {
-            return "1.0";
+            return "1.6";
         }
 
         public override bool screen()
         {
             return true;
         }
-
-        public override bool t(int i)
+        public override double CalculateLongExitLimitPrice()
         {
-            IBar b0 = GetDayBar(bd.Date, 0);
-            return false;
+            double rv = enterExecPrice + prev.ATR * 0.5;
+            return rv;
+        }
+        //public override bool t(int symbolNumber, int dayNumber, int minuteNumber)
+        public override bool CheckLongEntryCriteria(int symbolNumber, int dayNumber, int minuteNumber)
+        //public override bool t(int i)
+        {
             tif = 10;
-            profitExit = 11.75;
-            StopTimeInterval = 99380;
-            maxOvernights = 4;
-
-
-
-            CloseAll = (int)(TimeSpan.Parse("11:59").Subtract(TimeSpan.Parse("09:30")).TotalMinutes);
-            //IBar b1 = GetDayBar(bd.Date,1);
-            //IBar b2 = GetDayBar(bd.Date,2);
-            //IBar b3 = GetDayBar(bd.Date,3);
-            //if (dbs.Count < 10000)
+            profitExit = 9.1;
+            StopTimeInterval = 20;
+            maxOvernights = 0;
+            CloseAll = 385;
+            if (symbols[symbolNumber] == "GBSN") return false;
+            this.symbolNumber = symbolNumber; this.dayNumber = dayNumber; this.minuteNumber = minuteNumber;
+            double mo1 = MinuteOpen(1, 1);
+            double mo2 = MinuteOpen(1, 2);
+            double mc2 = MinuteClose(1, 2);
+            //foreach(string s in symbols)
             //{
-            //    dbs.Add("b0.Open=" + b0.Open.ToString()  + " b1.Close=" + b1.Close.ToString());
+            //    Console.Write(s + ' ');
             //}
-            //File.AppendAllText(@"c:\src\diag.txt",$"b0.Open{b0.Open} b1.Close{b1.Close}\r\n
-            int t1 = Test.Time(i);
-            ////////return MinuteClose(1, 1) < b0.Open * 0.995 && t1 > t931 && t1 < t1259;
-            return true;
-            //return b1.Close > b1.Open * 1.0075 && b0.Open < b1.Close * 1.03 && Time() > Time("09:31") && Time() < Time("09:33");
-            //return b0.Open > b1.Close * 0.95 && MinuteClose(1, 1) > b1.Close * 1.005 && MinuteClose(1, 1) > b0.Open * 1.002 && Time() > Time("10:01") && Time() < Time("10:03");
-            //double close = MinuteClose(5, 1);
-            //MinuteClose(1, 1) > MinuteOpen(60, 4) * 0.95
-            //double open = MinuteOpen(5, 1) - 1.8;
-            //bool b = false;
-            //b = close < open;
-            //return b && Time() > Time("9:40");
+            //Console.WriteLine();
+            if (minuteNumber == 0)
+            {
+                try
+                {
+                    int mov = MinuteVolume(1, 0);
+                    
+                    results.Add("symbol=" + symbols[symbolNumber] + " minutenumber = " + minuteNumber + " date=" + dates[dayNumber] + " copen " + MinuteOpen(1, 0) + " vol " + mov);
+                }
+                catch (Exception e)
+                {
+                    results.Add("exc");
+                }
+                //results.Add("symbol=" + symbols[symbolNumber] + " minutenumber = " + minuteNumber + " date=" + dates[dayNumber] + " copen " + MinuteOpen(1, 0));
+            }
+            if (mo1 == 0 || mo2 == 0) return false;
+
+            //results.Add("symbol=" + symbols[symbolNumber] + " minutenumber = " + minuteNumber + " date=" + dates[dayNumber] + " chigh " + MinuteHigh(1, 0));
+            //results.Add("symbol=" + symbols[symbolNumber] + " minutenumber = " + minuteNumber + " date=" + dates[dayNumber] + " clow " + MinuteLow(1, 0));
+            //results.Add("symbol=" + symbols[symbolNumber] + " minutenumber = " + minuteNumber + " date=" + dates[dayNumber] + " cclose " + MinuteClose(1, 0));
+
+            if (prev != null && today != null)
+            {
+                double pc = prev.Close;
+                double atr = prev.ATR;
+                //mo1 < today.Open  - (4.5 * prev.ATR)
+                if (mo1 < today.Open  - (0.5 * prev.ATR) && minuteNumber < 15 && minuteNumber > 2 && mo1 < 250)
+                {
+                    if(symbols[symbolNumber] == "XOM")
+                    {
+
+                    }
+                    //results.Add("symbol=" + symbols[symbolNumber] + " date=" + dates[dayNumber] + " todopen=" + today.Open + " prevclose=" + prev.Close + " prev.ATR=" + prev.ATR + " mo1=" + mo1 + " closeall=" + CloseAll + " mc2 " + mc2);
+                    //results.Add("symbol=" + symbols[symbolNumber] + " minutenumber = " + minuteNumber + " date=" + dates[dayNumber] + " copen " + MinuteOpen(1, 0));
+                    //results.Add("symbol=" + symbols[symbolNumber] + " minutenumber = " + minuteNumber + " date=" + dates[dayNumber] + " chigh " + MinuteHigh(1, 0));
+                    //results.Add("symbol=" + symbols[symbolNumber] + " minutenumber = " + minuteNumber + " date=" + dates[dayNumber] + " clow " + MinuteLow(1, 0));
+                    //results.Add("symbol=" + symbols[symbolNumber] + " minutenumber = " + minuteNumber + " date=" + dates[dayNumber] + " cclose " + MinuteClose(1, 0));
+
+                    Console.WriteLine("symbol=" + symbols[symbolNumber] + " date=" + dates[dayNumber] + " todopen=" + today.Open + " prevclose=" + prev.Close + " prev.ATR=" + prev.ATR);
+                    return true;
+                }
+                //Console.WriteLine("pc=" + pc + " atr=" + atr);
+            }
+            return false;
+        }
+
+        public override bool CheckShortEntryCriteria(int symbolNumber, int dayNumber, int minuteNumber)
+        {
+            return false;
+        }
+
+        public override double CalculateShortExitLimitPrice()
+        {
+            return 0;
         }
     }
 }

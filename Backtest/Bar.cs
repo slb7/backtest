@@ -10,7 +10,7 @@ namespace Backtest
     public class Bar : IBar
     {
         //private BarDay bd;
-        private short[] arr;
+        private float[] arr;
         int sc;
         private int offset;
         private double itod(short i)
@@ -20,21 +20,24 @@ namespace Backtest
         }
         IBar IBar.GetZeroBar()
         {
-            Bar rv = new Bar(arr, 0, 0);
+            Bar rv = new Bar(arr, 0, 0,0,0,0);
             return rv;
             //throw new NotImplementedException();
         }
-        public Bar(short[] a,int offset, int symbolCount)
+        public Bar(float[] a,int offset, int symbolCount, int index, int symbolnumber, int numMinutes)
         {
             arr = a;
             sc = symbolCount;
             this.offset = offset;
+            this.numMinutes = numMinutes;
+            this.interval = index;
+            this.symbolNumber = symbolnumber;
         }
         double IBar.Close
         {
             get
             {
-                return itod(arr[offset + 3]);
+                return arr[offset + 3];
             }
         }
 
@@ -42,7 +45,7 @@ namespace Backtest
         {
             get
             {
-                return itod(arr[offset + 4]);
+                return arr[offset + 4];
             }
         }
 
@@ -50,7 +53,7 @@ namespace Backtest
         {
             get
             {
-                return itod(arr[offset + 5]);
+                return arr[offset + 5];
             }
         }
 
@@ -58,7 +61,7 @@ namespace Backtest
         {
             get
             {
-                return itod(arr[offset + 1]);
+                return arr[offset + 1];
             }
         }
 
@@ -66,7 +69,7 @@ namespace Backtest
         {
             get
             {
-                return itod(arr[offset + 2]);
+                return arr[offset + 2];
             }
         }
 
@@ -74,7 +77,7 @@ namespace Backtest
         {
             get
             {
-                return itod(arr[offset + 0]);
+                return arr[offset + 0];
             }
         }
 
@@ -83,8 +86,29 @@ namespace Backtest
             get
             {
                 int[] ia = new int[1];
-                Buffer.BlockCopy(arr, (offset * 2) + 12, ia, 0, 4);
+                Buffer.BlockCopy(arr, (offset * 4) + 24, ia, 0, 4);
                 return ia[0];
+            }
+        }
+        int symbolNumber;
+        int numMinutes;
+        int interval;
+        int dayNumber;
+
+        DateTime IBar.Time
+        {
+            get
+            {
+                DateTime rv = DateTime.Parse(BarDay.dates[dayNumber]).AddHours(9.5).AddMinutes(numMinutes * interval);
+                return rv;
+            }
+        }
+
+        string IBar.Symbol
+        {
+            get
+            {
+                return BarDay.symbols[symbolNumber];
             }
         }
 
