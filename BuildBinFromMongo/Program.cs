@@ -1,5 +1,6 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Driver;
+using MongoObjects;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,21 +10,21 @@ using System.Threading.Tasks;
 
 namespace BuildBinFromMongo
 {
-    public class Quote
-    {
-        public ObjectId _id;
-        public double h;
-        public double o;
-        public double l;
-        public double c;
-        public int v;
-        public string s;
-        public DateTime d;
-        public DateTime date;
-        public bool e = false;
-        public double dayHigh;
-        public double dayLow;
-    }
+    //public class Quote
+    //{
+    //    public ObjectId _id;
+    //    public double h;
+    //    public double o;
+    //    public double l;
+    //    public double c;
+    //    public int v;
+    //    public string s;
+    //    public DateTime d;
+    //    public DateTime date;
+    //    public bool e = false;
+    //    public double dayHigh;
+    //    public double dayLow;
+    //}
     class Program
     {
         static TimeSpan first = TimeSpan.Parse("08:31").Add(new TimeSpan(6,0,0));
@@ -51,6 +52,27 @@ namespace BuildBinFromMongo
 
             }
         }
+        static void createFile(IQueryable<Quote> qColl, DateTime dt,string[] symbols,bool isnd,DateTime nddate)
+        {
+            float[] arr = new float[symbols.Count() * 390 * 7];
+            for (int i = 0; i < arr.Length; i++) arr[i] = 0;
+            var quotes = (from q in qColl where q.date == dt select q);
+            foreach (var q in quotes)
+            {
+                storeQuote(symbols, q, arr);
+            }
+            byte[] ba = new byte[arr.Length * 4];
+            Buffer.BlockCopy(arr, 0, ba, 0, ba.Length);
+            string nd = "";
+            string dateString = dt.ToString("yyyyMMdd");
+            if (isnd)
+            {
+                nd = "nd";
+                dateString = nddate.ToString("yyyyMMdd");
+            }
+            File.WriteAllBytes($@"e:\muearningsbin\{dateString}.bin" + nd, ba);
+            //File.WriteAllLines($@"e:\muearningsbin\{dt.ToString("yyyyMMdd")}.sym", symbols);
+        }
         static void Main(string[] args)
         {
             IMongoClient client;
@@ -58,24 +80,30 @@ namespace BuildBinFromMongo
             client = new MongoClient();
             database = client.GetDatabase("Quotes");
             var coll = database.GetCollection<Quote>("EarningsQuotes");
+            var collndq = database.GetCollection<Quote>("DayAfterEarningsQuotes");
+            var collnd = database.GetCollection<Earning>("DayAfterEarnings");
             var qColl = coll.AsQueryable<Quote>();
+            var qCollnd = collndq.AsQueryable<Quote>();
             DateTime[] dates = (from d in qColl select d.date).Distinct().ToArray();
             Array.Sort(dates);
             foreach(DateTime dt in dates)
             {
+                var nddt = (from nd in collnd.AsQueryable<Earning>() where nd.date > dt select nd.date).OrderBy(x=>x).First();
                 string[] symbols = (from q in qColl where q.date == dt select q.s).Distinct().ToArray();
                 Array.Sort(symbols);
-                float[] arr = new float[symbols.Count() * 390 * 7];
-                for (int i = 0; i < arr.Length; i++) arr[i] = 0;
-                var quotes = (from q in qColl where q.date == dt select q);
-                foreach(var q in quotes)
-                {
-                    storeQuote(symbols, q, arr);
-                }
-                byte[] ba = new byte[arr.Length * 4];
-                Buffer.BlockCopy(arr, 0, ba, 0, ba.Length);
-                File.WriteAllBytes($@"e:\muearningsbin\{dt.ToString("yyyyMMdd")}.bin", ba);
                 File.WriteAllLines($@"e:\muearningsbin\{dt.ToString("yyyyMMdd")}.sym", symbols);
+                createFile(qColl, dt, symbols, false,dt);
+                createFile(qCollnd, nddt, symbols, true,dt);
+                //float[] arr = new float[symbols.Count() * 390 * 7];
+                //for (int i = 0; i < arr.Length; i++) arr[i] = 0;
+                //var quotes = (from q in qColl where q.date == dt select q);
+                //foreach(var q in quotes)
+                //{
+                //    storeQuote(symbols, q, arr);
+                //}
+                //byte[] ba = new byte[arr.Length * 4];
+                //Buffer.BlockCopy(arr, 0, ba, 0, ba.Length);
+                //File.WriteAllBytes($@"e:\muearningsbin\{dt.ToString("yyyyMMdd")}.bin", ba);
             }
         }
     }
