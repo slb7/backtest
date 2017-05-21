@@ -78,27 +78,38 @@ namespace Backtest.Infrastructure
         }
         public double MinuteOpen(int mins, int period)
         {
-            int offset = 0;
-            int adjustedMinuteNumber = minuteNumber - period;
-            if (mins == 1)
+            try
             {
-                double rv = 0;
-                bool uf = false;
-                do
+                int offset = 0;
+                int adjustedMinuteNumber = minuteNumber - period;
+                if (mins == 1)
                 {
-                    offset = (dayNumber * shortsPerDay) + (adjustedMinuteNumber * shortsPerMinute) + (symbolNumber * shortsPerBar);
-                    if (offset < 0)
+                    double rv = 0;
+                    bool uf = false;
+                    do
                     {
-                        if (adjustedMinuteNumber >= 0)
+                        offset = (dayNumber * shortsPerDay) + (adjustedMinuteNumber * shortsPerMinute) + (symbolNumber * shortsPerBar);
+                        if (offset < 0)
                         {
+                            if (adjustedMinuteNumber >= 0)
+                            {
 
+                            }
+                            uf = true;
                         }
-                        uf = true;
-                    }
-                    rv = arr[offset + 2];
-                    adjustedMinuteNumber -= 1; // if open price = 0, go to previous minte next time
-                } while (!uf && rv == 0);
-                return rv;
+                        else
+                        {
+                            rv = arr[offset + 2];
+                        }
+                        adjustedMinuteNumber -= 1; // if open price = 0, go to previous minte next time
+                        if(Math.Abs(rv) > 100000) results.Add("offset " + offset + " rv " + rv);
+                    } while (!uf && rv == 0);
+                    return rv;
+                }
+            } catch(Exception e)
+            {
+                Console.WriteLine(e.Message);
+                Console.WriteLine(e.StackTrace);
             }
             throw (new Exception("not supposed to be here"));
             return 0;
@@ -166,14 +177,28 @@ namespace Backtest.Infrastructure
                     t = testDictionary[symbol];
                     try
                     {
-                        IDayCandle prev = dcPrev[symbol];
-                        IDayCandle today = dcToday[symbol];
-                        t.runMinute(i, tr, bd, dayNumber, prev, today);
+                        if (dcPrev.ContainsKey(symbol) && dcToday.ContainsKey(symbol))
+                        {
+
+                            IDayCandle prev = dcPrev[symbol];
+                            IDayCandle today = dcToday[symbol];
+                            t.runMinute(i, tr, bd, dayNumber, prev, today);
+                        }
+                        else
+                        {
+                            if (i == 0)
+                            {
+                                results.Add($"missing day candle for {symbol} + {date}");
+                                Console.WriteLine($"missing day candle for {symbol} + {date}");
+                            }
+                        }
                     }
                     catch(Exception e)
                     {
+                        Console.WriteLine(e.Message);
+                        Console.WriteLine(e.StackTrace);
                         //Console.WriteLine($"crap {symbol} {t.dates[0]}" );
-                        
+
                     }
                 }
             }
@@ -437,7 +462,7 @@ namespace Backtest.Infrastructure
                     testResult.NumTrades++;
                     testResult.PandL += pandl;
                     //testResults.Add(testResult);
-                    string str = $"{bd.Symbol} Stop Exit:{barTime.ToString("MM-dd-yy HH:mm:ss")} {i} enterExecPrice={enterExecPrice} exitExecPrice={exitExecPrice} p&l={(pandl).ToString("0.00")}";
+                    string str = $"{bd.Symbol} Stop Exit:{barTime.ToString("MM-dd-yy HH:mm:ss")} {i} enterExecPrice={enterExecPrice.ToString("0.00")} exitExecPrice={exitExecPrice.ToString("0.00")} p&l={(pandl).ToString("0.00")}";
                     results.Add(str);
                     results.AddRange(Test.messages);
                     inPosition = false;

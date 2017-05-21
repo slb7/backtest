@@ -35,21 +35,25 @@ namespace BuildBinFromMongo
             int rv = 0;
             DateTime begin = q.d.Date + first;
             int min = (int)(q.d - begin).TotalMinutes;
-            int slot = (min * slotsPerMin) + Array.BinarySearch(symbols, q.s);
-            if (slot >= 0 && slot < arr.Length)
+            int symbolNumber = Array.BinarySearch(symbols, q.s);
+            if (min >= 0 && symbolNumber >= 0)
             {
-                arr[slot + 0] = (float)q.o;
-                arr[slot + 1] = (float)q.h;
-                arr[slot + 2] = (float)q.l;
-                arr[slot + 3] = (float)q.c;
-                arr[slot + 4] = (float)q.dayHigh;
-                arr[slot + 5] = (float)q.dayLow;
-                int[] ia = new int[] { q.v };
-                Buffer.BlockCopy(ia, 0, arr, slot + 6, 4);
-            }
-            else
-            {
+                int slot = (min * slotsPerMin) + (symbolNumber * 7);
+                if (slot >= 0 && slot < arr.Length)
+                {
+                    arr[slot + 0] = (float)q.o;
+                    arr[slot + 1] = (float)q.h;
+                    arr[slot + 2] = (float)q.l;
+                    arr[slot + 3] = (float)q.c;
+                    arr[slot + 4] = (float)q.dayHigh;
+                    arr[slot + 5] = (float)q.dayLow;
+                    int[] ia = new int[] { q.v };
+                    Buffer.BlockCopy(ia, 0, arr, (slot + 6) * 4, 4);
+                }
+                else
+                {
 
+                }
             }
         }
         static void createFile(IQueryable<Quote> qColl, DateTime dt,string[] symbols,bool isnd,DateTime nddate)
@@ -61,6 +65,28 @@ namespace BuildBinFromMongo
             {
                 storeQuote(symbols, q, arr);
             }
+            int candleSize = 7;
+            int minuteSize = candleSize * symbols.Count();
+            for(int i = 0;i < symbols.Count();i++)
+            {
+                for(int j = 1;j<390;j++)
+                {
+                    int symSlot = (j * minuteSize) + (i * candleSize);
+                    int prevSymSlot = symSlot - minuteSize;
+                    float prevDH = arr[prevSymSlot + 4];
+                    float prevDL = arr[prevSymSlot + 5];
+                    float DH = arr[symSlot + 4];
+                    float DL = arr[symSlot + 5];
+                    if (DH == 0)
+                    {
+                        arr[symSlot + 4] = prevDH;
+                    }
+                    if (DL == 0)
+                    {
+                        arr[symSlot + 5] = prevDL;
+                    }
+                }
+            }
             byte[] ba = new byte[arr.Length * 4];
             Buffer.BlockCopy(arr, 0, ba, 0, ba.Length);
             string nd = "";
@@ -70,7 +96,7 @@ namespace BuildBinFromMongo
                 nd = "nd";
                 dateString = nddate.ToString("yyyyMMdd");
             }
-            File.WriteAllBytes($@"e:\muearningsbin\{dateString}.bin" + nd, ba);
+            File.WriteAllBytes($@"e:\muearningsbin2\{dateString}.bin" + nd, ba);
             //File.WriteAllLines($@"e:\muearningsbin\{dt.ToString("yyyyMMdd")}.sym", symbols);
         }
         static void Main(string[] args)
@@ -91,7 +117,7 @@ namespace BuildBinFromMongo
                 var nddt = (from nd in collnd.AsQueryable<Earning>() where nd.date > dt select nd.date).OrderBy(x=>x).First();
                 string[] symbols = (from q in qColl where q.date == dt select q.s).Distinct().ToArray();
                 Array.Sort(symbols);
-                File.WriteAllLines($@"e:\muearningsbin\{dt.ToString("yyyyMMdd")}.sym", symbols);
+                File.WriteAllLines($@"e:\muearningsbin2\{dt.ToString("yyyyMMdd")}.sym", symbols);
                 createFile(qColl, dt, symbols, false,dt);
                 createFile(qCollnd, nddt, symbols, true,dt);
                 //float[] arr = new float[symbols.Count() * 390 * 7];
