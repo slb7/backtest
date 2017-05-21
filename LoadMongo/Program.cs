@@ -16,10 +16,10 @@ namespace LoadMongo
         {
             IMongoClient client;
             IMongoDatabase database;
-            string[] strings = File.ReadAllLines(@"c:\users\scott\Downloads\er_nyse.csv");
-            string[] strings1 = File.ReadAllLines(@"c:\users\scott\Downloads\er_nsdq.csv");
-            List<Earning> earnings = (from e in strings where Earning.isEarning(e) select new Earning(e)).ToList();
-            earnings.AddRange(from e in strings1 where Earning.isEarning(e) select new Earning(e));
+            //string[] strings = File.ReadAllLines(@"c:\users\scott\Downloads\er_nyse.csv");
+            //string[] strings1 = File.ReadAllLines(@"c:\users\scott\Downloads\er_nsdq.csv");
+            //List<Earning> earnings = (from e in strings where Earning.isEarning(e) select new Earning(e)).ToList();
+            //earnings.AddRange(from e in strings1 where Earning.isEarning(e) select new Earning(e));
             client = new MongoClient();
             database = client.GetDatabase("Quotes");
             var earningsCollection = database.GetCollection<Earning>("Earnings");
