@@ -256,7 +256,7 @@ namespace Backtest.Infrastructure
                 int minuteNumber = i;
                 CheckEntryCriteria(results, barday, ref orderInForce, ref orderInForceExpiry, ref enterLimitPrice,dayNumber,minuteNumber);
             }
-            else if (!inPosition)
+            if (!inPosition)
             {
                 if (orderInForce)
                 {
@@ -272,7 +272,7 @@ namespace Backtest.Infrastructure
                     }
                 }
             }
-            else if (inPosition)
+            if (inPosition)
             {
                 ProcessTradeExit(results, barday);//, ref inPosition, exitLimitPrice, enterExecPrice, ref exitExecPrice, stopTime);
             }
