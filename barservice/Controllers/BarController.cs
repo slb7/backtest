@@ -39,7 +39,7 @@ namespace barservice.Controllers
             //int symbolNo = 1;
             int b;
             List<Models.Bar> bz = new List<Models.Bar>();
-            DateTime dt = DateTime.Parse(date).AddHours(9.5);
+            DateTime dt = DateTime.Parse(date).AddHours(9.5).AddMinutes(1);
             for(int i = 0;i<390;i++)
             {
                 int off = i * 7 * symbols.Length;

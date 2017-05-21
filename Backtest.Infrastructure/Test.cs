@@ -256,7 +256,7 @@ namespace Backtest.Infrastructure
                 int minuteNumber = i;
                 CheckEntryCriteria(results, barday, ref orderInForce, ref orderInForceExpiry, ref enterLimitPrice,dayNumber,minuteNumber);
             }
-            if (!inPosition)
+            else if (!inPosition)
             {
                 if (orderInForce)
                 {
@@ -272,7 +272,7 @@ namespace Backtest.Infrastructure
                     }
                 }
             }
-            if (inPosition)
+            else if (inPosition)
             {
                 ProcessTradeExit(results, barday);//, ref inPosition, exitLimitPrice, enterExecPrice, ref exitExecPrice, stopTime);
             }
@@ -429,7 +429,7 @@ namespace Backtest.Infrastructure
             {
                 if (b.Open > exitLimitPrice && activeOrderSide == 'B')
                 {
-                    DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i);
+                    DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i + 1);
                     exitExecPrice = exitLimitPrice;
                     double pandl = exitExecPrice - enterExecPrice;
                     testResult.NumTrades++;
@@ -440,7 +440,7 @@ namespace Backtest.Infrastructure
                     results.AddRange(Test.messages);
                     inPosition = false;
                 } else if(b.Open != 0 && b.Open < exitLimitPrice && activeOrderSide == 'S') {
-                    DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i);
+                    DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i + 1);
                     exitExecPrice = exitLimitPrice;
                     double pandl = enterExecPrice - exitExecPrice;
                     testResult.NumTrades++;
@@ -455,7 +455,7 @@ namespace Backtest.Infrastructure
                 {
                     results.Add($"stop time{stopTime}");
                     //File.AppendAllText(@"c:\src\diag.txt", $"profitExit={profitExit} tif={tif} exitLimitPrice{exitLimitPrice} \r\n");
-                    DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i);
+                    DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i + 1);
                     exitExecPrice = b.Open;
                     double pandl = enterExecPrice - exitExecPrice;
                     if (activeOrderSide == 'B') pandl *= -1;
@@ -477,7 +477,7 @@ namespace Backtest.Infrastructure
             if (b.Open == 0 && b.Volume == 0) return;
             if (b.Open < enterLimitPrice && activeOrderSide == 'B')
             {
-                DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i);
+                DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i + 1);
 
                 inPosition = true;
                 inPositionDays = 0;
@@ -495,7 +495,7 @@ namespace Backtest.Infrastructure
             }
             if (b.Open > enterLimitPrice && activeOrderSide == 'S')
             {
-                DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i);
+                DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i + 1);
 
                 inPosition = true;
                 inPositionDays = 0;
@@ -522,7 +522,7 @@ namespace Backtest.Infrastructure
                 if (b == null) underflow = true;
                 if (!underflow)
                 {
-                    DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i);
+                    DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i + 1);
                     entering = true;
                     enterLimitPrice = CalculateLongEntryLimitPrice();
                     //double d = MinuteClose(5, 0);
@@ -544,7 +544,7 @@ namespace Backtest.Infrastructure
                 if (b == null) underflow = true;
                 if (!underflow)
                 {
-                    DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i);
+                    DateTime barTime = barday.Date.AddHours(9.5).AddMinutes(i + 1);
                     entering = true;
                     enterLimitPrice = CalculateShortEntryLimitPrice();
                     //double d = MinuteClose(5, 0);

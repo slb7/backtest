@@ -64,7 +64,7 @@ namespace LoadMongo
                         foreach(var item in itemGroup)
                         {
                             item.dayHigh = (from items in itemGroup where items.d <= item.d select items.h).Max();
-                            item.dayLow = (from items in itemGroup where items.d <= item.d select items.h).Min();
+                            item.dayLow = (from items in itemGroup where items.d <= item.d select items.l).Min();
                         }
                     }
                 }

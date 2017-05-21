@@ -99,7 +99,7 @@ namespace Backtest
         {
             get
             {
-                DateTime rv = DateTime.Parse(BarDay.dates[dayNumber]).AddHours(9.5).AddMinutes(numMinutes * interval);
+                DateTime rv = DateTime.Parse(BarDay.dates[dayNumber]).AddHours(9.5).AddMinutes(numMinutes * interval + 1);
                 return rv;
             }
         }
